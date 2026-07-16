@@ -56,6 +56,16 @@
             background: #dbeafe;
         }
 
+        .rotate-btn {
+            margin-top: 8px;
+            padding: 6px 10px;
+            border: 1px solid #4a5568;
+            border-radius: 4px;
+            background: #2b6cb0;
+            color: #fff;
+            cursor: pointer;
+        }
+
         .ship-cell {
             width: 28px;
             height: 28px;
@@ -103,6 +113,7 @@
                 <div class="ship-cell"></div>
                 <div class="ship-cell"></div>
             </div>
+            <button id="rotateShipBtn" class="rotate-btn" type="button">Rotate Ship (Horizontal)</button>
             <p>Drag it onto the board, or click it and then click a starting cell.</p>
         </aside>
 
@@ -221,8 +232,10 @@
 
     <script>
         const shipPalette = document.getElementById('shipPalette');
+        const rotateShipBtn = document.getElementById('rotateShipBtn');
         const cells = Array.from(document.querySelectorAll('.grid .cell'));
         let selectedShip = false;
+        let shipOrientation = 'horizontal';
 
         shipPalette.addEventListener('dragstart', (event) => {
             event.dataTransfer.setData('text/plain', 'ship');
@@ -240,6 +253,12 @@
             selectedShip = true;
             highlightReadyCells();
             shipPalette.classList.add('selected');
+        });
+
+        rotateShipBtn.addEventListener('click', () => {
+            shipOrientation = shipOrientation === 'horizontal' ? 'vertical' : 'horizontal';
+            rotateShipBtn.textContent = `Rotate Ship (${shipOrientation.charAt(0).toUpperCase() + shipOrientation.slice(1)})`;
+            highlightReadyCells();
         });
 
         cells.forEach((cell) => {
@@ -260,15 +279,20 @@
         });
 
         function highlightReadyCells() {
+            clearReadyCells();
             cells.forEach((cell) => {
                 const [_, colStr, rowStr] = cell.id.split('-');
                 const col = parseInt(colStr, 10);
                 const row = parseInt(rowStr, 10);
+                const canPlace = shipOrientation === 'horizontal'
+                    ? col <= 7
+                    : row <= 7;
 
-                if (col <= 7) {
+                if (canPlace) {
                     cell.classList.add('ready');
                 }
             });
+            shipPalette.classList.add('selected');
         }
 
         function clearReadyCells() {
@@ -279,15 +303,12 @@
         function placeShip(startCell) {
             const [_, colStr, rowStr] = startCell.id.split('-');
             const startCol = parseInt(colStr, 10);
-            const row = parseInt(rowStr, 10);
-
-            if (startCol > 7) {
-                return;
-            }
+            const startRow = parseInt(rowStr, 10);
 
             const positions = [];
             for (let offset = 0; offset < 4; offset += 1) {
-                const col = startCol + offset;
+                const col = shipOrientation === 'horizontal' ? startCol + offset : startCol;
+                const row = shipOrientation === 'horizontal' ? startRow : startRow + offset;
                 const cellId = `cell-${col}-${row}`;
                 const targetCell = document.getElementById(cellId);
 

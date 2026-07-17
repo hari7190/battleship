@@ -38,22 +38,51 @@
 
         .ship-palette {
             display: flex;
-            gap: 4px;
+            flex-direction: column;
+            gap: 8px;
             padding: 8px;
             background: #eef6ff;
             border: 2px dashed #4a5568;
             border-radius: 6px;
-            cursor: grab;
             margin-bottom: 8px;
         }
 
-        .ship-palette.dragging {
+        .ship-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px;
+            border-radius: 4px;
+            background: #fff;
+            border: 1px solid #cbd5e0;
+            cursor: grab;
+        }
+
+        .ship-option.dragging {
             opacity: 0.6;
         }
 
-        .ship-palette.selected {
+        .ship-option.selected {
             border-color: #2b6cb0;
             background: #dbeafe;
+        }
+
+        .ship-option .ship-cell {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #4a5568;
+        }
+
+        .ship-option[data-color="blue"] .ship-cell {
+            background: #2b6cb0;
+        }
+
+        .ship-option[data-color="green"] .ship-cell {
+            background: #38a169;
+        }
+
+        .ship-option[data-color="orange"] .ship-cell {
+            background: #d97706;
         }
 
         .rotate-btn {
@@ -74,6 +103,21 @@
             box-sizing: border-box;
         }
 
+        .cell.ship-blue {
+            background: #2b6cb0;
+            border-color: #1d4ed8;
+        }
+
+        .cell.ship-green {
+            background: #38a169;
+            border-color: #2f855a;
+        }
+
+        .cell.ship-orange {
+            background: #d97706;
+            border-color: #b45309;
+        }
+
         .grid {
             display: grid;
             grid-template-columns: repeat(10, 40px);
@@ -91,11 +135,6 @@
             box-sizing: border-box;
         }
 
-        .cell.placed {
-            background: #2b6cb0;
-            border-color: #1d4ed8;
-        }
-
         .cell.ready {
             outline: 2px dashed #2b6cb0;
             outline-offset: 2px;
@@ -107,11 +146,22 @@
     <div class="board-layout">
         <aside class="sidebar">
             <h3>Ship Builder</h3>
-            <div id="shipPalette" class="ship-palette" draggable="true">
-                <div class="ship-cell"></div>
-                <div class="ship-cell"></div>
-                <div class="ship-cell"></div>
-                <div class="ship-cell"></div>
+            <div id="shipPalette" class="ship-palette">
+                <div class="ship-option" data-length="4" data-color="blue" draggable="true">
+                    <div class="ship-cell"></div>
+                    <div class="ship-cell"></div>
+                    <div class="ship-cell"></div>
+                    <div class="ship-cell"></div>
+                </div>
+                <div class="ship-option" data-length="3" data-color="green" draggable="true">
+                    <div class="ship-cell"></div>
+                    <div class="ship-cell"></div>
+                    <div class="ship-cell"></div>
+                </div>
+                <div class="ship-option" data-length="2" data-color="orange" draggable="true">
+                    <div class="ship-cell"></div>
+                    <div class="ship-cell"></div>
+                </div>
             </div>
             <button id="rotateShipBtn" class="rotate-btn" type="button">Rotate Ship (Horizontal)</button>
             <p>Drag it onto the board, or click it and then click a starting cell.</p>
@@ -231,34 +281,39 @@
     </div>
 
     <script>
-        const shipPalette = document.getElementById('shipPalette');
+        const shipOptions = Array.from(document.querySelectorAll('.ship-option'));
         const rotateShipBtn = document.getElementById('rotateShipBtn');
         const cells = Array.from(document.querySelectorAll('.grid .cell'));
-        let selectedShip = false;
+        let selectedShip = null;
         let shipOrientation = 'horizontal';
 
-        shipPalette.addEventListener('dragstart', (event) => {
-            event.dataTransfer.setData('text/plain', 'ship');
-            shipPalette.classList.add('dragging');
-            selectedShip = true;
-            highlightReadyCells();
-        });
+        shipOptions.forEach((option) => {
+            option.addEventListener('dragstart', (event) => {
+                event.dataTransfer.setData('text/plain', option.dataset.length);
+                option.classList.add('dragging');
+                selectedShip = option;
+                highlightReadyCells();
+            });
 
-        shipPalette.addEventListener('dragend', () => {
-            shipPalette.classList.remove('dragging');
-            clearReadyCells();
-        });
+            option.addEventListener('dragend', () => {
+                option.classList.remove('dragging');
+                clearReadyCells();
+            });
 
-        shipPalette.addEventListener('click', () => {
-            selectedShip = true;
-            highlightReadyCells();
-            shipPalette.classList.add('selected');
+            option.addEventListener('click', () => {
+                selectedShip = option;
+                highlightReadyCells();
+                shipOptions.forEach((item) => item.classList.remove('selected'));
+                option.classList.add('selected');
+            });
         });
 
         rotateShipBtn.addEventListener('click', () => {
             shipOrientation = shipOrientation === 'horizontal' ? 'vertical' : 'horizontal';
             rotateShipBtn.textContent = `Rotate Ship (${shipOrientation.charAt(0).toUpperCase() + shipOrientation.slice(1)})`;
-            highlightReadyCells();
+            if (selectedShip) {
+                highlightReadyCells();
+            }
         });
 
         cells.forEach((cell) => {
@@ -280,33 +335,43 @@
 
         function highlightReadyCells() {
             clearReadyCells();
+            if (!selectedShip) {
+                return;
+            }
+
+            const length = parseInt(selectedShip.dataset.length, 10);
             cells.forEach((cell) => {
                 const [_, colStr, rowStr] = cell.id.split('-');
                 const col = parseInt(colStr, 10);
                 const row = parseInt(rowStr, 10);
                 const canPlace = shipOrientation === 'horizontal'
-                    ? col <= 7
-                    : row <= 7;
+                    ? col <= 10 - length
+                    : row <= 10 - length;
 
                 if (canPlace) {
                     cell.classList.add('ready');
                 }
             });
-            shipPalette.classList.add('selected');
+            selectedShip.classList.add('selected');
         }
 
         function clearReadyCells() {
             cells.forEach((cell) => cell.classList.remove('ready'));
-            shipPalette.classList.remove('selected');
+            shipOptions.forEach((item) => item.classList.remove('selected'));
         }
 
         function placeShip(startCell) {
+            if (!selectedShip) {
+                return;
+            }
+
+            const length = parseInt(selectedShip.dataset.length, 10);
             const [_, colStr, rowStr] = startCell.id.split('-');
             const startCol = parseInt(colStr, 10);
             const startRow = parseInt(rowStr, 10);
 
             const positions = [];
-            for (let offset = 0; offset < 4; offset += 1) {
+            for (let offset = 0; offset < length; offset += 1) {
                 const col = shipOrientation === 'horizontal' ? startCol + offset : startCol;
                 const row = shipOrientation === 'horizontal' ? startRow : startRow + offset;
                 const cellId = `cell-${col}-${row}`;
@@ -319,8 +384,33 @@
                 positions.push(targetCell);
             }
 
-            positions.forEach((cell) => cell.classList.add('placed'));
-            selectedShip = false;
+            positions.forEach((cell) => {
+                cell.classList.add('placed');
+                cell.classList.add(`ship-${selectedShip.dataset.color}`);
+            });
+
+            const shipType = selectedShip.dataset.color;
+            const coordinates = positions.map((cell) => {
+                const parts = cell.id.split('-');
+                return [parseInt(parts[2], 10), parseInt(parts[1], 10)];
+            });
+            const payload = {
+                type: shipType,
+                positions: coordinates
+            };
+
+            fetch('http://localhost:8080/api/placement', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            }).catch((error) => {
+                console.error('Failed to submit placement:', error);
+            });
+
+            selectedShip.remove();
+            selectedShip = null;
             clearReadyCells();
         }
     </script>

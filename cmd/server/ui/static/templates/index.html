@@ -145,7 +145,7 @@
 <body>
     <div class="board-layout">
         <aside class="sidebar">
-            <h3>Ship Builder</h3>
+            <h3>Ships</h3>
             <div id="shipPalette" class="ship-palette">
                 <div class="ship-option" data-length="4" data-color="blue" draggable="true">
                     <div class="ship-cell"></div>
@@ -281,11 +281,53 @@
     </div>
 
     <script>
+        function setCookie(name, value, days = 7) {
+            const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString();
+            document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
+        }
+
+        function getCookie(name) {
+            const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+            return match ? decodeURIComponent(match[1]) : null;
+        }
+
+        async function joinGame() {
+            try {
+                const response = await fetch('http://localhost:8080/api/join', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'token': getCookie("token")
+                    },
+                    body: JSON.stringify({})
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Join failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.game_id) {
+                    setCookie('game_id', data.game_id);
+                }
+                if (data.token) {
+                    setCookie('token', data.token);
+                }
+                if (data.player_id) {
+                    setCookie('player_id', data.player_id);
+                }
+            } catch (error) {
+                console.error('Failed to join game:', error);
+            }
+        }
+
         const shipOptions = Array.from(document.querySelectorAll('.ship-option'));
         const rotateShipBtn = document.getElementById('rotateShipBtn');
         const cells = Array.from(document.querySelectorAll('.grid .cell'));
         let selectedShip = null;
         let shipOrientation = 'horizontal';
+
+        joinGame();
 
         shipOptions.forEach((option) => {
             option.addEventListener('dragstart', (event) => {
@@ -402,7 +444,8 @@
             fetch('http://localhost:8080/api/placement', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'token': getCookie('token')
                 },
                 body: JSON.stringify(payload)
             }).catch((error) => {

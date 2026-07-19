@@ -8,11 +8,14 @@ import (
 )
 
 func main() {
+	store := handlers.NewGameStore()
+
 	mux := http.NewServeMux()
 	fileServer := http.FileServer(http.Dir("ui/static"))
 
 	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
-	mux.Handle("/api/placement", handlers.Place())
+	mux.Handle("/api/join", handlers.Join(store))
+	mux.Handle("/api/placement", handlers.Place(store))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)

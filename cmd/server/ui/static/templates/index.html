@@ -95,6 +95,42 @@
             cursor: pointer;
         }
 
+        .session-card {
+            margin-top: 12px;
+            padding: 10px;
+            background: #f8fafc;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .session-card label {
+            display: block;
+            margin-top: 6px;
+            font-weight: 600;
+        }
+
+        .session-card input {
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 4px;
+            padding: 6px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        .clear-btn {
+            margin-top: 8px;
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #4a5568;
+            border-radius: 4px;
+            background: #ef4444;
+            color: #fff;
+            cursor: pointer;
+        }
+
         .ship-cell {
             width: 28px;
             height: 28px;
@@ -164,6 +200,15 @@
                 </div>
             </div>
             <button id="rotateShipBtn" class="rotate-btn" type="button">Rotate Ship (Horizontal)</button>
+            <div class="session-card">
+                <label for="playerIdField">Player ID</label>
+                <input id="playerIdField" type="text" readonly />
+
+                <label for="gameIdField">Game ID</label>
+                <input id="gameIdField" type="text" readonly />
+
+                <button id="clearSessionBtn" class="clear-btn" type="button">Clear Session</button>
+            </div>
             <p>Drag it onto the board, or click it and then click a starting cell.</p>
         </aside>
 
@@ -291,6 +336,22 @@
             return match ? decodeURIComponent(match[1]) : null;
         }
 
+        function eraseCookie(name) {
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+        }
+
+        function updateSessionDisplay() {
+            const playerId = getCookie('player_id') || '';
+            const gameId = getCookie('game_id') || '';
+            playerIdField.value = playerId;
+            gameIdField.value = gameId;
+        }
+
+        function clearSession() {
+            ['game_id', 'token', 'player_id'].forEach(eraseCookie);
+            updateSessionDisplay();
+        }
+
         async function joinGame() {
             try {
                 const response = await fetch('http://localhost:8080/api/join', {
@@ -316,6 +377,8 @@
                 if (data.player_id) {
                     setCookie('player_id', data.player_id);
                 }
+
+                updateSessionDisplay();
             } catch (error) {
                 console.error('Failed to join game:', error);
             }
@@ -323,10 +386,15 @@
 
         const shipOptions = Array.from(document.querySelectorAll('.ship-option'));
         const rotateShipBtn = document.getElementById('rotateShipBtn');
+        const clearSessionBtn = document.getElementById('clearSessionBtn');
+        const playerIdField = document.getElementById('playerIdField');
+        const gameIdField = document.getElementById('gameIdField');
         const cells = Array.from(document.querySelectorAll('.grid .cell'));
         let selectedShip = null;
         let shipOrientation = 'horizontal';
 
+        updateSessionDisplay();
+        clearSessionBtn.addEventListener('click', clearSession);
         joinGame();
 
         shipOptions.forEach((option) => {

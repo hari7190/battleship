@@ -21,3 +21,5 @@ Implementation of Battle Ship Game in Go.
         // BE searches for active games in ready for join
             // push to redis with Player 2 information into Game object
             // return the game id and token.
+
+![Screenshot](images/image.png)

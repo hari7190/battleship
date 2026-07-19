@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -88,7 +89,24 @@ func Join(store *GameStore) http.HandlerFunc {
 				gameMemberShip = store.createGame(game, player_id)
 			}
 		} else { // else create a new game
-			gameMemberShip = store.createGame(game, player_id)
+			game, err := store.IsJoinableGameAvailable()
+			if err != nil {
+				log.Default().Println("Error - finding a new game")
+			}
+
+			if game.GameId != "" {
+				player_id := uuid.NewString()
+				game, err = store.addPlayerToGame(game.GameId, player_id)
+
+				gameMemberShip = GameMemberShip{
+					GameId:   game.GameId,
+					Token:    game.GameId + ":" + player_id,
+					PlayerId: player_id,
+				}
+			} else {
+				gameMemberShip = store.createGame(game, player_id)
+			}
+
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -96,28 +114,6 @@ func Join(store *GameStore) http.HandlerFunc {
 			log.Printf("failed to write response: %v", err)
 		}
 	}
-}
-
-func (store *GameStore) createGame(game Game, player_id string) GameMemberShip {
-	game = Game{
-		GameId:  uuid.NewString(),
-		Players: make(map[string][]Placement),
-	}
-	player_id = uuid.NewString()
-	game.Players[player_id] = []Placement{}
-	token := game.GameId + ":" + uuid.NewString()
-	store.addGame(game)
-
-	gameMemberShip := GameMemberShip{
-		GameId:   game.GameId,
-		Token:    token,
-		PlayerId: player_id,
-	}
-
-	log.Default().Println("Game created: " + game.GameId)
-	log.Default().Println("Player joined:" + player_id)
-
-	return gameMemberShip
 }
 
 // handle ship placement events
@@ -145,7 +141,6 @@ func Place(store *GameStore) http.HandlerFunc {
 			return
 		}
 
-		// gameID, err := IsJoinableGameAvailable()
 		if err != nil {
 			log.Printf("failed to read game id: %v", err)
 			http.Error(w, "failed to save placement", http.StatusInternalServerError)
@@ -157,12 +152,53 @@ func Place(store *GameStore) http.HandlerFunc {
 	}
 }
 
-func IsJoinableGameAvailable() (Game, error) {
-	// iterate
+func (store *GameStore) IsJoinableGameAvailable() (Game, error) {
+	for game := range store.Games {
+		if len(store.Games[game].Players) < 2 {
+			return store.Games[game], nil
+		}
+	}
+	return Game{}, nil
 }
 
-func (gs *GameStore) addGame(game Game) {
+func (store *GameStore) createGame(game Game, player_id string) GameMemberShip {
+	game = Game{
+		GameId:  uuid.NewString(),
+		Players: make(map[string][]Placement),
+	}
+	player_id = uuid.NewString()
+	game.Players[player_id] = []Placement{}
+	token := game.GameId + ":" + player_id
+	store.addGameToStore(game)
+
+	gameMemberShip := GameMemberShip{
+		GameId:   game.GameId,
+		Token:    token,
+		PlayerId: player_id,
+	}
+
+	log.Default().Println("Game created: " + game.GameId)
+	log.Default().Println("Player joined:" + player_id)
+
+	return gameMemberShip
+}
+
+func (gs *GameStore) addGameToStore(game Game) {
 	gs.Games[game.GameId] = game
+}
+
+func (gs *GameStore) addPlayerToGame(gameId string, player_id string) (Game, error) {
+	game, exists := gs.Games[gameId]
+
+	if exists {
+		if len(game.Players) < 2 {
+			game.Players[player_id] = []Placement{}
+			log.Default().Println("Player joined:" + player_id)
+
+			return game, nil
+		}
+	}
+	return Game{}, errors.New("Failed to add to game")
 }
 
 func (gs *GameStore) updatePlacement(placement Placement, player_id string, gameId string) {

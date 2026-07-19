@@ -1,4 +1,60 @@
+// Preload game data if we already have a game
+async function getGameData() {
+    if (getCookie('token')) {
+        const response = await fetch('http://localhost:8080/api/playerInfo', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'token': getCookie('token')
+            },
+        }).catch((error) => {
+            console.error('Failed to get game:', error);
+        });
 
+        const data = await response.json();
+        gameState = Array.isArray(data) ? data : [];
+        console.log('2. Data received:', gameState);
+        rebuildBoardFromState(gameState);
+    }
+}
+
+function rebuildBoardFromState(state) {
+    cells.forEach((cell) => {
+        cell.classList.remove('placed');
+        cell.classList.remove('ship-blue');
+        cell.classList.remove('ship-green');
+        cell.classList.remove('ship-orange');
+    });
+
+    shipOptions.forEach((option) => option.classList.remove('is-placed'));
+
+    if (!Array.isArray(state)) {
+        return;
+    }
+
+    state.forEach((shipPlacement) => {
+        const shipColor = shipPlacement.ship;
+        const positions = Array.isArray(shipPlacement.positions) ? shipPlacement.positions : [];
+
+        const matchingOption = Array.from(shipOptions).find((option) => option.dataset.color === shipColor);
+        if (matchingOption) {
+            matchingOption.remove();
+            // matchingOption.classList.add('is-placed');
+        }
+
+        positions.forEach(([col, row]) => {
+            const cellId = `cell-${row}-${col}`;
+            const cell = document.getElementById(cellId);
+
+            if (cell) {
+                cell.classList.add('placed');
+                cell.classList.add(`ship-${shipColor}`);
+            }
+        });
+    });
+}
+
+// Utility methods
 function setCookie(name, value, days = 7) {
     const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString();
     document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
@@ -65,10 +121,12 @@ const gameIdField = document.getElementById('gameIdField');
 const cells = Array.from(document.querySelectorAll('.grid .cell'));
 let selectedShip = null;
 let shipOrientation = 'horizontal';
+let gameState = {}
 
 updateSessionDisplay();
 clearSessionBtn.addEventListener('click', clearSession);
-joinGame();
+
+joinGame().then(getGameData());
 
 shipOptions.forEach((option) => {
     option.addEventListener('dragstart', (event) => {

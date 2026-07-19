@@ -152,6 +152,19 @@ func Place(store *GameStore) http.HandlerFunc {
 	}
 }
 
+// handle retrieving Game Data
+func GetPlayerData(store *GameStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tokenParts := strings.Split(r.Header.Get("token"), ":")
+		playerId := tokenParts[1]
+		gameId := tokenParts[0]
+		err := json.NewEncoder(w).Encode(store.Games[gameId].Players[playerId])
+		if err != nil {
+			log.Printf("Failed to jsonize: %v", err)
+		}
+	}
+}
+
 func (store *GameStore) IsJoinableGameAvailable() (Game, error) {
 	for game := range store.Games {
 		if len(store.Games[game].Players) < 2 {

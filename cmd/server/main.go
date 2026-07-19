@@ -14,8 +14,9 @@ func main() {
 	fileServer := http.FileServer(http.Dir("ui/static"))
 
 	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
-	mux.Handle("/api/join", handlers.Join(store))
-	mux.Handle("/api/placement", handlers.Place(store))
+	mux.Handle("POST /api/join", handlers.Join(store))
+	mux.Handle("POST /api/placement", handlers.Place(store))
+	mux.Handle("GET /api/game/{gameId}", handlers.GetGame(store))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)

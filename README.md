@@ -1,6 +1,12 @@
-# battleship
-Implementation of Battle Ship Game in Go.
+# Battleship
+Implementation of Battle Ship Game in Go & Javascript.
 
+### Goal
+
+The goal of this project is to create a scalable testbed for experimenting with concurrency models and optimizing network performance under heavy load.
+
+
+### Basic Logic
 
 // Player 1 loads page 
     // fires join API

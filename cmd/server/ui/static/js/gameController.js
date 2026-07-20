@@ -39,12 +39,11 @@ function rebuildBoardFromState(state) {
         const matchingOption = Array.from(shipOptions).find((option) => option.dataset.color === shipColor);
         if (matchingOption) {
             matchingOption.remove();
-            // matchingOption.classList.add('is-placed');
         }
 
-        positions.forEach(([col, row]) => {
-            const cellId = `cell-${row}-${col}`;
-            const cell = document.getElementById(cellId);
+        positions.forEach((position) => {
+            const [row, col] = Array.isArray(position) ? position : [];
+            const cell = getBoardCell('fleet', col, row);
 
             if (cell) {
                 cell.classList.add('placed');
@@ -118,14 +117,77 @@ const rotateShipBtn = document.getElementById('rotateShipBtn');
 const clearSessionBtn = document.getElementById('clearSessionBtn');
 const playerIdField = document.getElementById('playerIdField');
 const gameIdField = document.getElementById('gameIdField');
-const cells = Array.from(document.querySelectorAll('.grid .cell'));
+const viewTabs = Array.from(document.querySelectorAll('.view-tab'));
+const fleetBoard = document.getElementById('fleetBoard');
+const fireBoard = document.getElementById('fireBoard');
+const fleetCells = Array.from(document.querySelectorAll('#fleetBoard .cell'));
+const fireCells = Array.from(document.querySelectorAll('#fireBoard .cell'));
+const cells = [...fleetCells, ...fireCells];
 let selectedShip = null;
 let shipOrientation = 'horizontal';
-let gameState = {}
+let gameState = {};
+let activeView = 'fleet';
+
+function getCellCoordinates(cell) {
+    const match = cell.id.match(/(\d+)-(\d+)$/);
+    if (!match) {
+        return null;
+    }
+
+    return {
+        col: parseInt(match[1], 10),
+        row: parseInt(match[2], 10)
+    };
+}
+
+function getBoardCell(boardName, col, row) {
+    return document.getElementById(`${boardName}-cell-${col}-${row}`) || document.getElementById(`${boardName}-cell-${row}-${col}`);
+}
 
 updateSessionDisplay();
 clearSessionBtn.addEventListener('click', clearSession);
 
+function setActiveView(view) {
+    activeView = view;
+    viewTabs.forEach((tab) => {
+        tab.classList.toggle('active', tab.dataset.view === view);
+    });
+
+    fleetBoard.classList.toggle('board-hidden', view !== 'fleet');
+    fleetBoard.classList.toggle('board-active', view === 'fleet');
+    fireBoard.classList.toggle('board-hidden', view !== 'fire');
+    fireBoard.classList.toggle('board-active', view === 'fire');
+    fireBoard.classList.toggle('fire-control', view === 'fire');
+}
+
+async function fireAtCell(cell) {
+    const coords = getCellCoordinates(cell);
+
+    try {
+        const response = await fetch('http://localhost:8080/api/fire', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'token': getCookie('token')
+            },
+            body: JSON.stringify(coords)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Fire failed: ${response.status}`);
+        }
+
+        cell.classList.add('fired');
+    } catch (error) {
+        console.error('Failed to fire:', error);
+    }
+}
+
+viewTabs.forEach((tab) => {
+    tab.addEventListener('click', () => setActiveView(tab.dataset.view));
+});
+
+setActiveView(activeView);
 joinGame().then(getGameData());
 
 shipOptions.forEach((option) => {
@@ -157,20 +219,27 @@ rotateShipBtn.addEventListener('click', () => {
     }
 });
 
-cells.forEach((cell) => {
-    cell.addEventListener('dragover', (event) => event.preventDefault());
+[fleetCells, fireCells].forEach((boardCells) => {
+    boardCells.forEach((cell) => {
+        cell.addEventListener('dragover', (event) => event.preventDefault());
 
-    cell.addEventListener('drop', (event) => {
-        event.preventDefault();
-        if (selectedShip) {
-            placeShip(cell);
-        }
-    });
+        cell.addEventListener('drop', (event) => {
+            event.preventDefault();
+            if (activeView === 'fleet' && selectedShip) {
+                placeShip(cell);
+            }
+        });
 
-    cell.addEventListener('click', () => {
-        if (selectedShip) {
-            placeShip(cell);
-        }
+        cell.addEventListener('click', () => {
+            if (activeView === 'fire') {
+                fireAtCell(cell);
+                return;
+            }
+
+            if (selectedShip) {
+                placeShip(cell);
+            }
+        });
     });
 });
 
@@ -181,10 +250,13 @@ function highlightReadyCells() {
     }
 
     const length = parseInt(selectedShip.dataset.length, 10);
-    cells.forEach((cell) => {
-        const [_, colStr, rowStr] = cell.id.split('-');
-        const col = parseInt(colStr, 10);
-        const row = parseInt(rowStr, 10);
+    fleetCells.forEach((cell) => {
+        const coords = getCellCoordinates(cell);
+        if (!coords) {
+            return;
+        }
+
+        const { col, row } = coords;
         const canPlace = shipOrientation === 'horizontal'
             ? col <= 10 - length
             : row <= 10 - length;
@@ -197,7 +269,7 @@ function highlightReadyCells() {
 }
 
 function clearReadyCells() {
-    cells.forEach((cell) => cell.classList.remove('ready'));
+    fleetCells.forEach((cell) => cell.classList.remove('ready'));
     shipOptions.forEach((item) => item.classList.remove('selected'));
 }
 
@@ -207,16 +279,19 @@ function placeShip(startCell) {
     }
 
     const length = parseInt(selectedShip.dataset.length, 10);
-    const [_, colStr, rowStr] = startCell.id.split('-');
-    const startCol = parseInt(colStr, 10);
-    const startRow = parseInt(rowStr, 10);
+    const coords = getCellCoordinates(startCell);
+    if (!coords) {
+        return;
+    }
+
+    const startCol = coords.col;
+    const startRow = coords.row;
 
     const positions = [];
     for (let offset = 0; offset < length; offset += 1) {
         const col = shipOrientation === 'horizontal' ? startCol + offset : startCol;
         const row = shipOrientation === 'horizontal' ? startRow : startRow + offset;
-        const cellId = `cell-${col}-${row}`;
-        const targetCell = document.getElementById(cellId);
+        const targetCell = getBoardCell('fleet', col, row);
 
         if (!targetCell || targetCell.classList.contains('placed')) {
             return;
@@ -232,8 +307,8 @@ function placeShip(startCell) {
 
     const shipType = selectedShip.dataset.color;
     const coordinates = positions.map((cell) => {
-        const parts = cell.id.split('-');
-        return [parseInt(parts[2], 10), parseInt(parts[1], 10)];
+        const coords = getCellCoordinates(cell);
+        return coords ? [coords.row, coords.col] : [];
     });
     const payload = {
         ship: shipType,

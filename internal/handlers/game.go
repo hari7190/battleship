@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// weird type to accomodate for future cell information
 type Coordinate []int
 
 type Placement struct {

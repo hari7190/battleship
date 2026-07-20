@@ -1,0 +1,47 @@
+package handlers
+
+import (
+	"encoding/json"
+	"io"
+	"log"
+	"net/http"
+	"slices"
+	"strings"
+)
+
+func Fire(gs *GameStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		//get token
+		token := r.Header.Get("token")
+		tokenParts := strings.Split(token, ":")
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "cant read data", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+
+		var cell Coordinate
+		if err := json.Unmarshal(bodyBytes, &cell); err != nil {
+			http.Error(w, "invalid JSON", http.StatusBadRequest)
+			return
+		}
+
+		gameId := tokenParts[0]
+		currentPlayerId := tokenParts[1]
+
+		game := gs.Games[gameId]
+
+		for playerId, postions := range game.Players {
+			if currentPlayerId != playerId {
+				for _, placement := range postions {
+					positions := placement.Positions
+					if slices.Contains(positions, cell) {
+						log.Default().Println("HIT")
+					}
+				}
+			}
+		}
+
+	}
+}

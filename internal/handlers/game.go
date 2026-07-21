@@ -12,7 +12,11 @@ import (
 )
 
 // weird type to accomodate for future cell information
-type Coordinate []int
+type Coordinate struct {
+	X   int `json:"x"`
+	Y   int `json:"y"`
+	Hit bool
+}
 
 type Placement struct {
 	Ship      string       `json:"ship"`

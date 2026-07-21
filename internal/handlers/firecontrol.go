@@ -35,9 +35,13 @@ func Fire(gs *GameStore) http.HandlerFunc {
 		for playerId, postions := range game.Players {
 			if currentPlayerId != playerId {
 				for _, placement := range postions {
+					ship := placement.Ship
 					positions := placement.Positions
 					if slices.Contains(positions, cell) {
-						log.Default().Println("HIT")
+						log.Default().Printf("Ship %s HIT \n", ship)
+						index := slices.Index(positions, cell)
+						positions[index].Hit = true
+						break
 					}
 				}
 			}

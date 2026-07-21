@@ -42,8 +42,11 @@ function rebuildBoardFromState(state) {
         }
 
         positions.forEach((position) => {
-            const [row, col] = Array.isArray(position) ? position : [];
-            const cell = getBoardCell('fleet', col, row);
+            const x = position && typeof position === 'object' ? position.x : undefined;
+            const y = position && typeof position === 'object' ? position.y : undefined;
+            const cell = typeof x === 'number' && typeof y === 'number'
+                ? getBoardCell('fleet', x, y)
+                : null;
 
             if (cell) {
                 cell.classList.add('placed');
@@ -162,6 +165,7 @@ function setActiveView(view) {
 
 async function fireAtCell(cell) {
     const coords = getCellCoordinates(cell);
+    const payload = coords ? { x: coords.col, y: coords.row } : null;
 
     try {
         const response = await fetch('http://localhost:8080/api/fire', {
@@ -170,7 +174,7 @@ async function fireAtCell(cell) {
                 'Content-Type': 'application/json',
                 'token': getCookie('token')
             },
-            body: JSON.stringify(coords)
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
@@ -308,8 +312,8 @@ function placeShip(startCell) {
     const shipType = selectedShip.dataset.color;
     const coordinates = positions.map((cell) => {
         const coords = getCellCoordinates(cell);
-        return coords ? [coords.row, coords.col] : [];
-    });
+        return coords ? { x: coords.col, y: coords.row } : null;
+    }).filter(Boolean);
     const payload = {
         ship: shipType,
         positions: coordinates

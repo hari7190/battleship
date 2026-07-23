@@ -21,6 +21,7 @@ async function getGameData() {
 function rebuildBoardFromState(state) {
     cells.forEach((cell) => {
         cell.classList.remove('placed');
+        cell.classList.remove('hit-marker');
         cell.classList.remove('ship-blue');
         cell.classList.remove('ship-green');
         cell.classList.remove('ship-orange');
@@ -44,6 +45,7 @@ function rebuildBoardFromState(state) {
         positions.forEach((position) => {
             const x = position && typeof position === 'object' ? position.x : undefined;
             const y = position && typeof position === 'object' ? position.y : undefined;
+            const isHit = position && typeof position === 'object' && position.hit === true;
             const cell = typeof x === 'number' && typeof y === 'number'
                 ? getBoardCell('fleet', x, y)
                 : null;
@@ -51,6 +53,10 @@ function rebuildBoardFromState(state) {
             if (cell) {
                 cell.classList.add('placed');
                 cell.classList.add(`ship-${shipColor}`);
+
+                if (isHit) {
+                    cell.classList.add('hit-marker');
+                }
             }
         });
     });
@@ -164,6 +170,10 @@ function setActiveView(view) {
 }
 
 async function fireAtCell(cell) {
+    if (cell.classList.contains('fired')) {
+        return;
+    }
+
     const coords = getCellCoordinates(cell);
     const payload = coords ? { x: coords.col, y: coords.row } : null;
 
@@ -181,7 +191,9 @@ async function fireAtCell(cell) {
             throw new Error(`Fire failed: ${response.status}`);
         }
 
+        const isHit = (await response.text()) === 'true';
         cell.classList.add('fired');
+        cell.classList.add(isHit ? 'hit' : 'miss');
     } catch (error) {
         console.error('Failed to fire:', error);
     }

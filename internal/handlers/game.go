@@ -13,9 +13,9 @@ import (
 
 // weird type to accomodate for future cell information
 type Coordinate struct {
-	X   int `json:"x"`
-	Y   int `json:"y"`
-	Hit bool
+	X   int  `json:"x"`
+	Y   int  `json:"y"`
+	Hit bool `json:"hit"`
 }
 
 type Placement struct {

@@ -15,6 +15,7 @@ func Fire(gs *GameStore) http.HandlerFunc {
 		token := r.Header.Get("token")
 		tokenParts := strings.Split(token, ":")
 		bodyBytes, err := io.ReadAll(r.Body)
+		var hit bool
 		if err != nil {
 			http.Error(w, "cant read data", http.StatusBadRequest)
 			return
@@ -41,11 +42,16 @@ func Fire(gs *GameStore) http.HandlerFunc {
 						log.Default().Printf("Ship %s HIT \n", ship)
 						index := slices.Index(positions, cell)
 						positions[index].Hit = true
+						hit = true
 						break
 					}
 				}
 			}
 		}
-
+		if hit {
+			w.Write([]byte("true"))
+		} else {
+			w.Write([]byte("false"))
+		}
 	}
 }

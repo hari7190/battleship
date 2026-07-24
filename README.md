@@ -29,3 +29,4 @@ The goal of this project is to create a scalable testbed for experimenting with 
             // return the game id and token.
 
 ![Screenshot](images/image.png)
+![Screenshot](images/image-midgame.png)

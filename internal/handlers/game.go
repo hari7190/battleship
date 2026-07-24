@@ -24,8 +24,9 @@ type Placement struct {
 }
 
 type Player struct {
-	PlayerId string    `json:"player_id"`
-	Position Placement `json:"position"`
+	PlayerId     string         `json:"player_id"`
+	Position     Placement      `json:"position"`
+	FiringRecord []FiringRecord `json:"firingrecord"`
 }
 
 type Game struct {
@@ -42,6 +43,12 @@ type GameMemberShip struct {
 
 type GameStore struct {
 	Games map[string]Game
+}
+
+type FiringRecord struct {
+	X       int  `json:"x"`
+	Y       int  `json:"y"`
+	SUCCESS bool `json:"success"`
 }
 
 /*

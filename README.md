@@ -1,3 +1,5 @@
+== Work in progress == 
+
 # Battleship
 Implementation of Battle Ship Game in Go & Javascript.
 

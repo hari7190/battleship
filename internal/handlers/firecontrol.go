@@ -39,7 +39,7 @@ func Fire(gs *GameStore) http.HandlerFunc {
 					ship := placement.Ship
 					positions := placement.Positions
 					if slices.Contains(positions, cell) {
-						log.Default().Printf("Ship %s HIT \n", ship)
+						log.Default().Printf("%s's Ship %s HIT \n", playerId, ship)
 						index := slices.Index(positions, cell)
 						positions[index].Hit = true
 						hit = true

@@ -30,9 +30,10 @@ type Player struct {
 }
 
 type Game struct {
-	GameId  string                 `json:"game_id"`
-	Status  int8                   `json:"status_code"`
-	Players map[string][]Placement `json:"players"`
+	GameId     string                 `json:"game_id"`
+	Status     int8                   `json:"status_code"`
+	Players    map[string][]Placement `json:"players"`
+	NextPlayer string                 `json:"next_player"`
 }
 
 type GameMemberShip struct {

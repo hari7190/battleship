@@ -119,6 +119,8 @@ async function joinGame() {
     } catch (error) {
         console.error('Failed to join game:', error);
     }
+
+    establishEventSource();
 }
 
 const shipOptions = Array.from(document.querySelectorAll('.ship-option'));
@@ -345,4 +347,38 @@ function placeShip(startCell) {
     selectedShip.remove();
     selectedShip = null;
     clearReadyCells();
+}
+
+function establishEventSource() {
+    const eventSource = new EventSource("http://localhost:8080/api/events/" + getCookie('token'));
+
+    // Listen for custom named events ("event: ping")
+    eventSource.addEventListener("ping", (event) => {
+        console.log("Ping received:", JSON.parse(event.data));
+    });
+
+    // Or listen for generic messages (when no 'event:' tag is set in Go)
+    eventSource.onmessage = (event) => {
+        console.log("Generic message:", event.data);
+    };
+
+    eventSource.onerror = (err) => {
+        console.error("EventSource failed:", err);
+    };
+
+    eventSource.addEventListener("update", (event) => {
+        try {
+            // 1. Convert the raw JSON string into a JS array
+            const data = JSON.parse(event.data);
+
+            // 2. Safely assign and render
+            gameState = Array.isArray(data) ? data : [];
+            rebuildBoardFromState(gameState);
+
+            console.log("Board rebuilt with new state:", gameState);
+        } catch (err) {
+            console.error("Failed to parse SSE JSON:", err);
+        }
+    });
+
 }

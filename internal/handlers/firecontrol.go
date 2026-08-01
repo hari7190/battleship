@@ -43,6 +43,7 @@ func Fire(gs *GameStore) http.HandlerFunc {
 						index := slices.Index(positions, cell)
 						positions[index].Hit = true
 						hit = true
+						gs.Broadcast(gameId, playerId, GetPlayerDataFromStore(gs, gameId, playerId))
 						break
 					}
 				}

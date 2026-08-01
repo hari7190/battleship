@@ -43,7 +43,8 @@ type GameMemberShip struct {
 }
 
 type GameStore struct {
-	Games map[string]Game
+	Games       map[string]Game
+	subscribers map[string]map[string][]chan string
 }
 
 type FiringRecord struct {
@@ -52,18 +53,40 @@ type FiringRecord struct {
 	SUCCESS bool `json:"success"`
 }
 
-/*
-	0 - game is created - no players
-	1 - players joining
-	2 - placements complete & ready to start
-	3 - in progress
-	4 - finished
-
-*/
-
 func NewGameStore() *GameStore {
 	return &GameStore{
-		Games: make(map[string]Game),
+		Games:       make(map[string]Game),
+		subscribers: make(map[string]map[string][]chan string),
+	}
+}
+
+func (gs *GameStore) AddSubscriber(gameID string, playerID string, ch chan string) {
+	if gs.subscribers[gameID] == nil {
+		gs.subscribers[gameID] = make(map[string][]chan string)
+	}
+	gs.subscribers[gameID][playerID] = append(gs.subscribers[gameID][playerID], ch)
+
+}
+
+func (gs *GameStore) RemoveSubscriber(gameID string, playerID string, ch chan string) {
+	subs := gs.subscribers[gameID][playerID]
+	for i, c := range subs {
+		if c == ch {
+			gs.subscribers[gameID][playerID] = append(subs[:i], subs[i+1:]...)
+			break
+		}
+	}
+}
+
+func (gs *GameStore) Broadcast(gameID string, playerID string, payload string) {
+	if gs.subscribers[gameID] == nil {
+		return
+	}
+	for _, ch := range gs.subscribers[gameID][playerID] {
+		select {
+		case ch <- payload:
+		default:
+		}
 	}
 }
 
@@ -178,6 +201,18 @@ func GetPlayerData(store *GameStore) http.HandlerFunc {
 	}
 }
 
+func GetPlayerDataFromStore(store *GameStore, game_id string, player_id string) string {
+	// 1. Fetch game and player data safely
+	game := store.Games[game_id]
+	playerPlacements := game.Players[player_id]
+
+	jsonBytes, err := json.Marshal(playerPlacements)
+	if err != nil {
+		log.Printf("Failed to jsonize: %v", err)
+	}
+	return string(jsonBytes)
+}
+
 func (store *GameStore) IsJoinableGameAvailable() (Game, error) {
 	for game := range store.Games {
 		if len(store.Games[game].Players) < 2 {
@@ -231,4 +266,23 @@ func (gs *GameStore) updatePlacement(placement Placement, player_id string, game
 	game, _ := gs.Games[gameId]
 
 	game.Players[player_id] = append(game.Players[player_id], placement)
+}
+
+func (gs *GameStore) toggleTurn(game_id string) {
+	// 1. Fetch the game copy (or pointer) from store
+	game, exists := gs.Games[game_id]
+	if !exists {
+		return
+	}
+
+	// 2. Safely swap turn without relying on slice index order
+	for playerID := range game.Players {
+		if playerID != game.NextPlayer {
+			game.NextPlayer = playerID
+			break
+		}
+	}
+
+	// 3. Write back to store (required if Games is map[string]Game)
+	gs.Games[game_id] = game
 }

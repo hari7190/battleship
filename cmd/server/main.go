@@ -18,6 +18,8 @@ func main() {
 	mux.Handle("POST /api/placement", handlers.Place(store))
 	mux.Handle("GET /api/playerInfo", handlers.GetPlayerData(store))
 	mux.Handle("POST /api/fire", handlers.Fire(store))
+	mux.Handle("GET /api/events/{token}", handlers.SSEHandler(store))
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)

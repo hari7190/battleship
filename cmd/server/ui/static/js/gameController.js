@@ -87,6 +87,20 @@ function updateSessionDisplay() {
 function clearSession() {
     ['game_id', 'token', 'player_id'].forEach(eraseCookie);
     updateSessionDisplay();
+    setOpponentStatus(false);
+}
+
+function setOpponentStatus(joined) {
+    if (!opponentStatus) {
+        return;
+    }
+    if (joined) {
+        opponentStatus.textContent = 'Opponent joined';
+        opponentStatus.classList.add('joined');
+    } else {
+        opponentStatus.textContent = 'Waiting for opponent…';
+        opponentStatus.classList.remove('joined');
+    }
 }
 
 async function joinGame() {
@@ -116,6 +130,7 @@ async function joinGame() {
         }
 
         updateSessionDisplay();
+        setOpponentStatus(!data.waiting_for_opponent);
     } catch (error) {
         console.error('Failed to join game:', error);
     }
@@ -128,6 +143,7 @@ const rotateShipBtn = document.getElementById('rotateShipBtn');
 const clearSessionBtn = document.getElementById('clearSessionBtn');
 const playerIdField = document.getElementById('playerIdField');
 const gameIdField = document.getElementById('gameIdField');
+const opponentStatus = document.getElementById('opponentStatus');
 const viewTabs = Array.from(document.querySelectorAll('.view-tab'));
 const fleetBoard = document.getElementById('fleetBoard');
 const fireBoard = document.getElementById('fireBoard');
@@ -384,5 +400,9 @@ function establishEventSource() {
 
     eventSource.addEventListener("fire-control", (event) => {
         fireDisabled = event.data === 'true';
+    });
+
+    eventSource.addEventListener("player-joined", () => {
+        setOpponentStatus(true);
     });
 }

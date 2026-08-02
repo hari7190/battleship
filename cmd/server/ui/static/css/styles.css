@@ -116,6 +116,22 @@ body {
     color: #0f172a;
 }
 
+.opponent-status {
+    margin: 10px 0 0;
+    padding: 6px 8px;
+    border-radius: 4px;
+    background: #1e293b;
+    border: 1px solid #475569;
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.opponent-status.joined {
+    background: #14532d;
+    border-color: #22c55e;
+    color: #bbf7d0;
+}
+
 .clear-btn {
     margin-top: 8px;
     width: 100%;

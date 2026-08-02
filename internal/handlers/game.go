@@ -37,9 +37,10 @@ type Game struct {
 }
 
 type GameMemberShip struct {
-	GameId   string `json:"game_id"`
-	Token    string `json:"token"`
-	PlayerId string `json:"player_id"`
+	GameId             string `json:"game_id"`
+	Token              string `json:"token"`
+	PlayerId           string `json:"player_id"`
+	WaitingForOpponent bool   `json:"waiting_for_opponent"`
 }
 
 type GameStore struct {
@@ -117,9 +118,10 @@ func Join(store *GameStore) http.HandlerFunc {
 				log.Default().Println("Game exists")
 				player_id = incomingPlayerId
 				gameMemberShip = GameMemberShip{
-					GameId:   incomingGameId,
-					PlayerId: incomingPlayerId,
-					Token:    r.Header.Get("token"),
+					GameId:             incomingGameId,
+					PlayerId:           incomingPlayerId,
+					Token:              r.Header.Get("token"),
+					WaitingForOpponent: len(game.Players) < 2,
 				}
 			} else {
 				gameMemberShip = store.createGame(game, player_id)
@@ -135,9 +137,10 @@ func Join(store *GameStore) http.HandlerFunc {
 				game, err = store.addPlayerToGame(game.GameId, player_id)
 
 				gameMemberShip = GameMemberShip{
-					GameId:   game.GameId,
-					Token:    game.GameId + ":" + player_id,
-					PlayerId: player_id,
+					GameId:             game.GameId,
+					Token:              game.GameId + ":" + player_id,
+					PlayerId:           player_id,
+					WaitingForOpponent: false,
 				}
 			} else {
 				gameMemberShip = store.createGame(game, player_id)
@@ -233,9 +236,10 @@ func (store *GameStore) createGame(game Game, player_id string) GameMemberShip {
 	store.addGameToStore(game)
 
 	gameMemberShip := GameMemberShip{
-		GameId:   game.GameId,
-		Token:    token,
-		PlayerId: player_id,
+		GameId:             game.GameId,
+		Token:              token,
+		PlayerId:           player_id,
+		WaitingForOpponent: true,
 	}
 
 	log.Default().Println("Game created: " + game.GameId)
@@ -254,7 +258,15 @@ func (gs *GameStore) addPlayerToGame(gameId string, player_id string) (Game, err
 	if exists {
 		if len(game.Players) < 2 {
 			game.Players[player_id] = []Placement{}
+			gs.Games[gameId] = game
 			log.Default().Println("Player joined:" + player_id)
+
+			// Notify the waiting player that an opponent joined
+			for existingPlayerId := range game.Players {
+				if existingPlayerId != player_id {
+					gs.Broadcast(gameId, existingPlayerId, "player-joined>:true")
+				}
+			}
 
 			return game, nil
 		}

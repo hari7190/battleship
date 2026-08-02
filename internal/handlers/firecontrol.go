@@ -31,6 +31,10 @@ func Fire(gs *GameStore) http.HandlerFunc {
 		currentPlayerId := tokenParts[1]
 
 		game := gs.Games[gameId]
+		if game.Winner != "" {
+			http.Error(w, "game already finished", http.StatusConflict)
+			return
+		}
 
 		for playerId, placements := range game.Players {
 			if currentPlayerId == playerId {
@@ -61,7 +65,15 @@ func Fire(gs *GameStore) http.HandlerFunc {
 
 			gs.Games[gameId] = game
 			gs.Broadcast(gameId, playerId, "update>:"+GetPlayerDataFromStore(gs, gameId, playerId))
-			gs.Broadcast(gameId, playerId, "fire-control>:"+"false")
+
+			if hit && allShipsSunk(game.Players[playerId]) {
+				game.Winner = currentPlayerId
+				gs.Games[gameId] = game
+				log.Default().Printf("Game %s over. Winner: %s\n", gameId, currentPlayerId)
+				gs.BroadcastAll(gameId, "game-over>:"+currentPlayerId)
+			} else {
+				gs.Broadcast(gameId, playerId, "fire-control>:"+"false")
+			}
 		}
 
 		if hit {

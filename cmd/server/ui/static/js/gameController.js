@@ -109,6 +109,8 @@ function clearSession() {
     ['game_id', 'token', 'player_id'].forEach(eraseCookie);
     updateSessionDisplay();
     setOpponentStatus(false);
+    gameOver = false;
+    fireDisabled = true;
 }
 
 function setOpponentStatus(joined) {
@@ -118,10 +120,10 @@ function setOpponentStatus(joined) {
     if (joined) {
         opponentStatus.textContent = 'Opponent joined';
         opponentStatus.classList.add('joined');
-        opponentStatus.classList.remove('ready');
+        opponentStatus.classList.remove('ready', 'finished');
     } else {
         opponentStatus.textContent = 'Waiting for opponent…';
-        opponentStatus.classList.remove('joined', 'ready');
+        opponentStatus.classList.remove('joined', 'ready', 'finished');
     }
 }
 
@@ -131,6 +133,23 @@ function setGameReadyStatus() {
     }
     opponentStatus.textContent = 'Game ready — both fleets placed';
     opponentStatus.classList.add('joined', 'ready');
+    opponentStatus.classList.remove('finished');
+}
+
+function setGameOverStatus(won) {
+    if (!opponentStatus) {
+        return;
+    }
+    gameOver = true;
+    fireDisabled = true;
+    opponentStatus.textContent = won ? 'You won!' : 'Opponent won';
+    opponentStatus.classList.add('finished');
+    opponentStatus.classList.remove('ready');
+    if (won) {
+        opponentStatus.classList.add('joined');
+    } else {
+        opponentStatus.classList.remove('joined');
+    }
 }
 
 async function joinGame() {
@@ -185,6 +204,7 @@ let shipOrientation = 'horizontal';
 let gameState = { ships: [], misses: [] };
 let activeView = 'fleet';
 let fireDisabled = true;
+let gameOver = false;
 
 function getCellCoordinates(cell) {
     const match = cell.id.match(/(\d+)-(\d+)$/);
@@ -219,7 +239,7 @@ function setActiveView(view) {
 }
 
 async function fireAtCell(cell) {
-    if (cell.classList.contains('fired')) {
+    if (gameOver || fireDisabled || cell.classList.contains('fired')) {
         return;
     }
 
@@ -246,7 +266,11 @@ async function fireAtCell(cell) {
         cell.classList.add('fired');
         cell.classList.add(isHit ? 'hit' : 'miss');
 
-        setTimeout(() => setActiveView('fleet'), 2000);
+        setTimeout(() => {
+            if (!gameOver) {
+                setActiveView('fleet');
+            }
+        }, 2000);
 
     } catch (error) {
         console.error('Failed to fire:', error);
@@ -425,13 +449,21 @@ function establishEventSource() {
             rebuildBoardFromState(gameState);
 
             console.log("Board rebuilt with new state:", gameState);
-            setTimeout(() => setActiveView('fire'), 2000);
+            setTimeout(() => {
+                if (!gameOver) {
+                    setActiveView('fire');
+                }
+            }, 2000);
         } catch (err) {
             console.error("Failed to parse SSE JSON:", err);
         }
     });
 
     eventSource.addEventListener("fire-control", (event) => {
+        if (gameOver) {
+            fireDisabled = true;
+            return;
+        }
         fireDisabled = event.data === 'true';
     });
 
@@ -441,5 +473,11 @@ function establishEventSource() {
 
     eventSource.addEventListener("game-ready", () => {
         setGameReadyStatus();
+    });
+
+    eventSource.addEventListener("game-over", (event) => {
+        const winnerId = event.data;
+        const won = winnerId === getCookie('player_id');
+        setGameOverStatus(won);
     });
 }

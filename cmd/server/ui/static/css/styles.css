@@ -138,6 +138,19 @@ body {
     color: #bfdbfe;
 }
 
+.opponent-status.finished {
+    background: #7c2d12;
+    border-color: #f97316;
+    color: #ffedd5;
+    font-weight: 600;
+}
+
+.opponent-status.finished.joined {
+    background: #14532d;
+    border-color: #22c55e;
+    color: #bbf7d0;
+}
+
 .clear-btn {
     margin-top: 8px;
     width: 100%;

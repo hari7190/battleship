@@ -49,3 +49,28 @@ func TestAddPlayerToGameBroadcastsPlayerJoined(t *testing.T) {
 		t.Fatal("expected player-joined broadcast to waiting player")
 	}
 }
+
+func TestAllShipsSunk(t *testing.T) {
+	if allShipsSunk(nil) {
+		t.Fatal("empty placements should not be sunk")
+	}
+
+	partial := []Placement{{
+		Ship: "blue",
+		Positions: []Coordinate{
+			{X: 1, Y: 1, Hit: true},
+			{X: 2, Y: 1, Hit: false},
+		},
+	}}
+	if allShipsSunk(partial) {
+		t.Fatal("partial hits should not be sunk")
+	}
+
+	sunk := []Placement{
+		{Ship: "blue", Positions: []Coordinate{{X: 1, Y: 1, Hit: true}, {X: 2, Y: 1, Hit: true}}},
+		{Ship: "green", Positions: []Coordinate{{X: 3, Y: 3, Hit: true}}},
+	}
+	if !allShipsSunk(sunk) {
+		t.Fatal("expected all ships sunk")
+	}
+}

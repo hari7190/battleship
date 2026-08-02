@@ -30,11 +30,12 @@ type Player struct {
 }
 
 type Game struct {
-	GameId     string                   `json:"game_id"`
-	Status     int8                     `json:"status_code"`
-	Players    map[string][]Placement   `json:"players"`
-	Misses     map[string][]Coordinate  `json:"misses"`
-	NextPlayer string                   `json:"next_player"`
+	GameId     string                  `json:"game_id"`
+	Status     int8                    `json:"status_code"`
+	Players    map[string][]Placement  `json:"players"`
+	Misses     map[string][]Coordinate `json:"misses"`
+	NextPlayer string                  `json:"next_player"`
+	Winner     string                  `json:"winner"`
 }
 
 type PlayerBoardState struct {
@@ -95,6 +96,32 @@ func (gs *GameStore) Broadcast(gameID string, playerID string, payload string) {
 		default:
 		}
 	}
+}
+
+func (gs *GameStore) BroadcastAll(gameID string, payload string) {
+	if gs.subscribers[gameID] == nil {
+		return
+	}
+	for playerID := range gs.subscribers[gameID] {
+		gs.Broadcast(gameID, playerID, payload)
+	}
+}
+
+func allShipsSunk(placements []Placement) bool {
+	if len(placements) == 0 {
+		return false
+	}
+	for _, placement := range placements {
+		if len(placement.Positions) == 0 {
+			return false
+		}
+		for _, pos := range placement.Positions {
+			if !pos.Hit {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // handle joining the game logic

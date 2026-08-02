@@ -14,7 +14,7 @@ func SSEHandler(store *GameStore) http.HandlerFunc {
 		playerId := tokenParts[1]
 		gameId := tokenParts[0]
 
-		ch := make(chan string, 1)
+		ch := make(chan string, 8)
 		store.AddSubscriber(gameId, playerId, ch)
 		defer store.RemoveSubscriber(gameId, playerId, ch)
 

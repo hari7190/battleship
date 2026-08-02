@@ -138,6 +138,7 @@ let selectedShip = null;
 let shipOrientation = 'horizontal';
 let gameState = {};
 let activeView = 'fleet';
+let fireDisabled = true;
 
 function getCellCoordinates(cell) {
     const match = cell.id.match(/(\d+)-(\d+)$/);
@@ -176,6 +177,8 @@ async function fireAtCell(cell) {
         return;
     }
 
+    fireDisabled = true;
+
     const coords = getCellCoordinates(cell);
     const payload = coords ? { x: coords.col, y: coords.row } : null;
 
@@ -196,6 +199,7 @@ async function fireAtCell(cell) {
         const isHit = (await response.text()) === 'true';
         cell.classList.add('fired');
         cell.classList.add(isHit ? 'hit' : 'miss');
+
     } catch (error) {
         console.error('Failed to fire:', error);
     }
@@ -249,7 +253,7 @@ rotateShipBtn.addEventListener('click', () => {
         });
 
         cell.addEventListener('click', () => {
-            if (activeView === 'fire') {
+            if (activeView === 'fire' && !fireDisabled) {
                 fireAtCell(cell);
                 return;
             }
@@ -368,10 +372,7 @@ function establishEventSource() {
 
     eventSource.addEventListener("update", (event) => {
         try {
-            // 1. Convert the raw JSON string into a JS array
             const data = JSON.parse(event.data);
-
-            // 2. Safely assign and render
             gameState = Array.isArray(data) ? data : [];
             rebuildBoardFromState(gameState);
 
@@ -381,4 +382,7 @@ function establishEventSource() {
         }
     });
 
+    eventSource.addEventListener("fire-control", (event) => {
+        fireDisabled = event.data === 'true';
+    });
 }

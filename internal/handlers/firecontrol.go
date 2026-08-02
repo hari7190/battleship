@@ -43,10 +43,11 @@ func Fire(gs *GameStore) http.HandlerFunc {
 						index := slices.Index(positions, cell)
 						positions[index].Hit = true
 						hit = true
-						gs.Broadcast(gameId, playerId, GetPlayerDataFromStore(gs, gameId, playerId))
+						gs.Broadcast(gameId, playerId, "update>:"+GetPlayerDataFromStore(gs, gameId, playerId))
 						break
 					}
 				}
+				gs.Broadcast(gameId, playerId, "fire-control>:"+"false")
 			}
 		}
 		if hit {

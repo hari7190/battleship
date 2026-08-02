@@ -266,23 +266,17 @@ func (gs *GameStore) updatePlacement(placement Placement, player_id string, game
 	game, _ := gs.Games[gameId]
 
 	game.Players[player_id] = append(game.Players[player_id], placement)
-}
 
-func (gs *GameStore) toggleTurn(game_id string) {
-	// 1. Fetch the game copy (or pointer) from store
-	game, exists := gs.Games[game_id]
-	if !exists {
-		return
-	}
-
-	// 2. Safely swap turn without relying on slice index order
-	for playerID := range game.Players {
-		if playerID != game.NextPlayer {
-			game.NextPlayer = playerID
-			break
+	//if both players have 3 placements, set fire-control to false
+	//iterate over the players and check if they have 3 placements each.
+	for _, player := range game.Players {
+		if len(player) != 3 {
+			return
 		}
 	}
-
-	// 3. Write back to store (required if Games is map[string]Game)
-	gs.Games[game_id] = game
+	if len(game.Players) == 2 {
+		for playerId := range game.Players {
+			gs.Broadcast(gameId, playerId, "fire-control>:"+"false")
+		}
+	}
 }

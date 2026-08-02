@@ -44,39 +44,14 @@ func SSEHandler(store *GameStore) http.HandlerFunc {
 		for {
 			select {
 			case msg := <-ch:
-				_, _ = w.Write([]byte("event: update\ndata: " + msg + "\n\n"))
+				msgParts := strings.Split(msg, ">:")
+				eventType := msgParts[0]
+				data := msgParts[1]
+				_, _ = w.Write([]byte("event: " + eventType + "\ndata: " + data + "\n\n"))
 				flusher.Flush()
 			case <-ctx.Done():
 				return
 			}
 		}
-
-		// for {
-		// 	select {
-		// 	case <-ctx.Done():
-		// 		// Client closed the connection or timed out
-		// 		log.Println("Client disconnected from SSE stream")
-		// 		return
-
-		// 	case t := <-ticker.C:
-		// 		eventID++
-
-		// 		// 4. Format the SSE message standard format:
-		// 		// "id: <id>\nevent: <name>\ndata: <content>\n\n"
-		// 		message2 := GetPlayerDataFromStore(store, gameId, playerId)
-		// 		message := fmt.Sprintf("id: %d\nevent: ping\ndata: %s\n\n", eventID, message2)
-		// 		fmt.Print(t.Format(time.RFC3339))
-		// 		fmt.Print(message2)
-		// 		// Write message to buffer
-		// 		_, err := w.Write([]byte(message))
-		// 		if err != nil {
-		// 			log.Printf("Error writing to stream: %v\n", err)
-		// 			return
-		// 		}
-
-		// 		// Flush buffer directly to the wire
-		// 		flusher.Flush()
-		// 	}
-		// }
 	}
 }

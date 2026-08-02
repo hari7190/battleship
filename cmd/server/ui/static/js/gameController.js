@@ -12,16 +12,27 @@ async function getGameData() {
         });
 
         const data = await response.json();
-        gameState = Array.isArray(data) ? data : [];
+        gameState = normalizeBoardState(data);
         console.log('2. Data received:', gameState);
         rebuildBoardFromState(gameState);
     }
 }
 
+function normalizeBoardState(data) {
+    if (Array.isArray(data)) {
+        return { ships: data, misses: [] };
+    }
+    return {
+        ships: Array.isArray(data?.ships) ? data.ships : [],
+        misses: Array.isArray(data?.misses) ? data.misses : [],
+    };
+}
+
 function rebuildBoardFromState(state) {
-    cells.forEach((cell) => {
+    fleetCells.forEach((cell) => {
         cell.classList.remove('placed');
         cell.classList.remove('hit-marker');
+        cell.classList.remove('miss-marker');
         cell.classList.remove('ship-blue');
         cell.classList.remove('ship-green');
         cell.classList.remove('ship-orange');
@@ -29,11 +40,9 @@ function rebuildBoardFromState(state) {
 
     shipOptions.forEach((option) => option.classList.remove('is-placed'));
 
-    if (!Array.isArray(state)) {
-        return;
-    }
+    const board = normalizeBoardState(state);
 
-    state.forEach((shipPlacement) => {
+    board.ships.forEach((shipPlacement) => {
         const shipColor = shipPlacement.ship;
         const positions = Array.isArray(shipPlacement.positions) ? shipPlacement.positions : [];
 
@@ -59,6 +68,18 @@ function rebuildBoardFromState(state) {
                 }
             }
         });
+    });
+
+    board.misses.forEach((position) => {
+        const x = position && typeof position === 'object' ? position.x : undefined;
+        const y = position && typeof position === 'object' ? position.y : undefined;
+        const cell = typeof x === 'number' && typeof y === 'number'
+            ? getBoardCell('fleet', x, y)
+            : null;
+
+        if (cell) {
+            cell.classList.add('miss-marker');
+        }
     });
 }
 
@@ -97,10 +118,19 @@ function setOpponentStatus(joined) {
     if (joined) {
         opponentStatus.textContent = 'Opponent joined';
         opponentStatus.classList.add('joined');
+        opponentStatus.classList.remove('ready');
     } else {
         opponentStatus.textContent = 'Waiting for opponent…';
-        opponentStatus.classList.remove('joined');
+        opponentStatus.classList.remove('joined', 'ready');
     }
+}
+
+function setGameReadyStatus() {
+    if (!opponentStatus) {
+        return;
+    }
+    opponentStatus.textContent = 'Game ready — both fleets placed';
+    opponentStatus.classList.add('joined', 'ready');
 }
 
 async function joinGame() {
@@ -152,7 +182,7 @@ const fireCells = Array.from(document.querySelectorAll('#fireBoard .cell'));
 const cells = [...fleetCells, ...fireCells];
 let selectedShip = null;
 let shipOrientation = 'horizontal';
-let gameState = {};
+let gameState = { ships: [], misses: [] };
 let activeView = 'fleet';
 let fireDisabled = true;
 
@@ -215,6 +245,8 @@ async function fireAtCell(cell) {
         const isHit = (await response.text()) === 'true';
         cell.classList.add('fired');
         cell.classList.add(isHit ? 'hit' : 'miss');
+
+        setTimeout(() => setActiveView('fleet'), 2000);
 
     } catch (error) {
         console.error('Failed to fire:', error);
@@ -389,10 +421,11 @@ function establishEventSource() {
     eventSource.addEventListener("update", (event) => {
         try {
             const data = JSON.parse(event.data);
-            gameState = Array.isArray(data) ? data : [];
+            gameState = normalizeBoardState(data);
             rebuildBoardFromState(gameState);
 
             console.log("Board rebuilt with new state:", gameState);
+            setTimeout(() => setActiveView('fire'), 2000);
         } catch (err) {
             console.error("Failed to parse SSE JSON:", err);
         }
@@ -404,5 +437,9 @@ function establishEventSource() {
 
     eventSource.addEventListener("player-joined", () => {
         setOpponentStatus(true);
+    });
+
+    eventSource.addEventListener("game-ready", () => {
+        setGameReadyStatus();
     });
 }

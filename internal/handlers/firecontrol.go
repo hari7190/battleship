@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"slices"
 	"strings"
 )
 
@@ -33,23 +32,38 @@ func Fire(gs *GameStore) http.HandlerFunc {
 
 		game := gs.Games[gameId]
 
-		for playerId, postions := range game.Players {
-			if currentPlayerId != playerId {
-				for _, placement := range postions {
-					ship := placement.Ship
-					positions := placement.Positions
-					if slices.Contains(positions, cell) {
-						log.Default().Printf("%s's Ship %s HIT \n", playerId, ship)
-						index := slices.Index(positions, cell)
-						positions[index].Hit = true
+		for playerId, placements := range game.Players {
+			if currentPlayerId == playerId {
+				continue
+			}
+
+			for i, placement := range placements {
+				for j, pos := range placement.Positions {
+					if pos.X == cell.X && pos.Y == cell.Y {
+						log.Default().Printf("%s's Ship %s HIT \n", playerId, placement.Ship)
+						game.Players[playerId][i].Positions[j].Hit = true
 						hit = true
-						gs.Broadcast(gameId, playerId, "update>:"+GetPlayerDataFromStore(gs, gameId, playerId))
 						break
 					}
 				}
-				gs.Broadcast(gameId, playerId, "fire-control>:"+"false")
+				if hit {
+					break
+				}
 			}
+
+			if !hit {
+				if game.Misses == nil {
+					game.Misses = make(map[string][]Coordinate)
+				}
+				game.Misses[playerId] = append(game.Misses[playerId], Coordinate{X: cell.X, Y: cell.Y})
+				log.Default().Printf("Miss on %s at (%d,%d)\n", playerId, cell.X, cell.Y)
+			}
+
+			gs.Games[gameId] = game
+			gs.Broadcast(gameId, playerId, "update>:"+GetPlayerDataFromStore(gs, gameId, playerId))
+			gs.Broadcast(gameId, playerId, "fire-control>:"+"false")
 		}
+
 		if hit {
 			w.Write([]byte("true"))
 		} else {

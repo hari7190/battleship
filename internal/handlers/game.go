@@ -30,10 +30,16 @@ type Player struct {
 }
 
 type Game struct {
-	GameId     string                 `json:"game_id"`
-	Status     int8                   `json:"status_code"`
-	Players    map[string][]Placement `json:"players"`
-	NextPlayer string                 `json:"next_player"`
+	GameId     string                   `json:"game_id"`
+	Status     int8                     `json:"status_code"`
+	Players    map[string][]Placement   `json:"players"`
+	Misses     map[string][]Coordinate  `json:"misses"`
+	NextPlayer string                   `json:"next_player"`
+}
+
+type PlayerBoardState struct {
+	Ships  []Placement  `json:"ships"`
+	Misses []Coordinate `json:"misses"`
 }
 
 type GameMemberShip struct {
@@ -197,19 +203,31 @@ func GetPlayerData(store *GameStore) http.HandlerFunc {
 		tokenParts := strings.Split(r.Header.Get("token"), ":")
 		playerId := tokenParts[1]
 		gameId := tokenParts[0]
-		err := json.NewEncoder(w).Encode(store.Games[gameId].Players[playerId])
+		err := json.NewEncoder(w).Encode(store.playerBoardState(gameId, playerId))
 		if err != nil {
 			log.Printf("Failed to jsonize: %v", err)
 		}
 	}
 }
 
-func GetPlayerDataFromStore(store *GameStore, game_id string, player_id string) string {
-	// 1. Fetch game and player data safely
+func (store *GameStore) playerBoardState(game_id string, player_id string) PlayerBoardState {
 	game := store.Games[game_id]
-	playerPlacements := game.Players[player_id]
+	misses := game.Misses[player_id]
+	if misses == nil {
+		misses = []Coordinate{}
+	}
+	ships := game.Players[player_id]
+	if ships == nil {
+		ships = []Placement{}
+	}
+	return PlayerBoardState{
+		Ships:  ships,
+		Misses: misses,
+	}
+}
 
-	jsonBytes, err := json.Marshal(playerPlacements)
+func GetPlayerDataFromStore(store *GameStore, game_id string, player_id string) string {
+	jsonBytes, err := json.Marshal(store.playerBoardState(game_id, player_id))
 	if err != nil {
 		log.Printf("Failed to jsonize: %v", err)
 	}
@@ -229,9 +247,11 @@ func (store *GameStore) createGame(game Game, player_id string) GameMemberShip {
 	game = Game{
 		GameId:  uuid.NewString(),
 		Players: make(map[string][]Placement),
+		Misses:  make(map[string][]Coordinate),
 	}
 	player_id = uuid.NewString()
 	game.Players[player_id] = []Placement{}
+	game.Misses[player_id] = []Coordinate{}
 	token := game.GameId + ":" + player_id
 	store.addGameToStore(game)
 
@@ -258,6 +278,10 @@ func (gs *GameStore) addPlayerToGame(gameId string, player_id string) (Game, err
 	if exists {
 		if len(game.Players) < 2 {
 			game.Players[player_id] = []Placement{}
+			if game.Misses == nil {
+				game.Misses = make(map[string][]Coordinate)
+			}
+			game.Misses[player_id] = []Coordinate{}
 			gs.Games[gameId] = game
 			log.Default().Println("Player joined:" + player_id)
 
@@ -288,6 +312,7 @@ func (gs *GameStore) updatePlacement(placement Placement, player_id string, game
 	}
 	if len(game.Players) == 2 {
 		for playerId := range game.Players {
+			gs.Broadcast(gameId, playerId, "game-ready>:true")
 			gs.Broadcast(gameId, playerId, "fire-control>:"+"false")
 		}
 	}

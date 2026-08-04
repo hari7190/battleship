@@ -107,6 +107,17 @@ func (gs *GameStore) BroadcastAll(gameID string, payload string) {
 	}
 }
 
+func parseGameToken(token string) (gameID string, playerID string, ok bool) {
+	if token == "" || token == "null" {
+		return "", "", false
+	}
+	gameID, playerID, found := strings.Cut(token, ":")
+	if !found || gameID == "" || playerID == "" {
+		return "", "", false
+	}
+	return gameID, playerID, true
+}
+
 func allShipsSunk(placements []Placement) bool {
 	if len(placements) == 0 {
 		return false
@@ -139,11 +150,7 @@ func Join(store *GameStore) http.HandlerFunc {
 		var gameMemberShip GameMemberShip
 
 		// if the token exists, get the ids, check if game exists, retrieve it.
-		if r.Header.Get("token") != "null" {
-			tokenParts := strings.Split(r.Header.Get("token"), ":")
-			incomingGameId := tokenParts[0]
-			incomingPlayerId := tokenParts[1]
-
+		if incomingGameId, incomingPlayerId, ok := parseGameToken(r.Header.Get("token")); ok {
 			var exists bool
 			game, exists = store.Games[incomingGameId]
 
@@ -191,14 +198,11 @@ func Join(store *GameStore) http.HandlerFunc {
 // handle ship placement events
 func Place(store *GameStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		token := r.Header.Get("token")
-
-		if token == "" {
+		gameId, playerId, ok := parseGameToken(r.Header.Get("token"))
+		if !ok {
 			http.Error(w, "Missing authentication token", http.StatusUnauthorized)
 			return
 		}
-
-		tokenParts := strings.Split(token, ":")
 
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -213,13 +217,7 @@ func Place(store *GameStore) http.HandlerFunc {
 			return
 		}
 
-		if err != nil {
-			log.Printf("failed to read game id: %v", err)
-			http.Error(w, "failed to save placement", http.StatusInternalServerError)
-			return
-		}
-
-		store.updatePlacement(placement, tokenParts[1], tokenParts[0])
+		store.updatePlacement(placement, playerId, gameId)
 		w.WriteHeader(http.StatusCreated)
 	}
 }
@@ -227,9 +225,11 @@ func Place(store *GameStore) http.HandlerFunc {
 // handle retrieving Game Data
 func GetPlayerData(store *GameStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tokenParts := strings.Split(r.Header.Get("token"), ":")
-		playerId := tokenParts[1]
-		gameId := tokenParts[0]
+		gameId, playerId, ok := parseGameToken(r.Header.Get("token"))
+		if !ok {
+			http.Error(w, "Missing authentication token", http.StatusUnauthorized)
+			return
+		}
 		err := json.NewEncoder(w).Encode(store.playerBoardState(gameId, playerId))
 		if err != nil {
 			log.Printf("Failed to jsonize: %v", err)

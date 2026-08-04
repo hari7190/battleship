@@ -1,7 +1,7 @@
 // Preload game data if we already have a game
 async function getGameData() {
     if (getCookie('token')) {
-        const response = await fetch('http://localhost:8080/api/playerInfo', {
+        const response = await fetch('/api/playerInfo', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -154,7 +154,7 @@ function setGameOverStatus(won) {
 
 async function joinGame() {
     try {
-        const response = await fetch('http://localhost:8080/api/join', {
+        const response = await fetch('/api/join', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -249,7 +249,7 @@ async function fireAtCell(cell) {
     const payload = coords ? { x: coords.col, y: coords.row } : null;
 
     try {
-        const response = await fetch('http://localhost:8080/api/fire', {
+        const response = await fetch('/api/fire', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -409,7 +409,7 @@ function placeShip(startCell) {
         positions: coordinates
     };
 
-    fetch('http://localhost:8080/api/placement', {
+    fetch('/api/placement', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -426,7 +426,13 @@ function placeShip(startCell) {
 }
 
 function establishEventSource() {
-    const eventSource = new EventSource("http://localhost:8080/api/events/" + getCookie('token'));
+    const token = getCookie('token');
+    if (!token || !token.includes(':')) {
+        console.error('Cannot open SSE: missing or invalid token');
+        return;
+    }
+
+    const eventSource = new EventSource("/api/events/" + token);
 
     // Listen for custom named events ("event: ping")
     eventSource.addEventListener("ping", (event) => {

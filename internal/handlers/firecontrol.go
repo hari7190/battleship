@@ -5,14 +5,16 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
 )
 
 func Fire(gs *GameStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		//get token
-		token := r.Header.Get("token")
-		tokenParts := strings.Split(token, ":")
+		gameId, currentPlayerId, ok := parseGameToken(r.Header.Get("token"))
+		if !ok {
+			http.Error(w, "Missing authentication token", http.StatusUnauthorized)
+			return
+		}
+
 		bodyBytes, err := io.ReadAll(r.Body)
 		var hit bool
 		if err != nil {
@@ -26,9 +28,6 @@ func Fire(gs *GameStore) http.HandlerFunc {
 			http.Error(w, "invalid JSON", http.StatusBadRequest)
 			return
 		}
-
-		gameId := tokenParts[0]
-		currentPlayerId := tokenParts[1]
 
 		game := gs.Games[gameId]
 		if game.Winner != "" {

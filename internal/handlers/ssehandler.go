@@ -4,15 +4,15 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 )
 
 func SSEHandler(store *GameStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
-		tokenParts := strings.Split(r.PathValue("token"), ":")
-		playerId := tokenParts[1]
-		gameId := tokenParts[0]
+		gameId, playerId, ok := parseGameToken(r.PathValue("token"))
+		if !ok {
+			http.Error(w, "invalid token", http.StatusBadRequest)
+			return
+		}
 
 		ch := make(chan string, 8)
 		store.AddSubscriber(gameId, playerId, ch)
@@ -37,16 +37,14 @@ func SSEHandler(store *GameStore) http.HandlerFunc {
 
 		log.Println("Client connected to SSE stream")
 
-		ticker := time.NewTicker(2 * time.Second)
-		defer ticker.Stop()
-
-		// eventID := 0
 		for {
 			select {
 			case msg := <-ch:
-				msgParts := strings.Split(msg, ">:")
-				eventType := msgParts[0]
-				data := msgParts[1]
+				eventType, data, found := strings.Cut(msg, ">:")
+				if !found {
+					log.Printf("ignoring malformed SSE payload: %q", msg)
+					continue
+				}
 				_, _ = w.Write([]byte("event: " + eventType + "\ndata: " + data + "\n\n"))
 				flusher.Flush()
 			case <-ctx.Done():

@@ -22,7 +22,6 @@ func SSEHandler(store *GameStore) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
-		// Header for CORS if your frontend is on a different origin/port
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		// 2. Ensure ResponseWriter supports flushing

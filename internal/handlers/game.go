@@ -23,11 +23,11 @@ type Placement struct {
 	Positions []Coordinate `json:"positions"`
 }
 
-type Player struct {
-	PlayerId     string         `json:"player_id"`
-	Position     Placement      `json:"position"`
-	FiringRecord []FiringRecord `json:"firingrecord"`
-}
+// type Player struct {
+// 	PlayerId     string         `json:"player_id"`
+// 	Position     Placement      `json:"position"`
+// 	FiringRecord []FiringRecord `json:"firingrecord"`
+// }
 
 type Game struct {
 	GameId     string                  `json:"game_id"`

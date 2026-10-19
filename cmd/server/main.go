@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
@@ -9,16 +10,19 @@ import (
 
 func main() {
 	store := handlers.NewGameStore()
+	context := context.Background()
+	redisStore := handlers.NewKVStore("localhost:6379")
 
 	mux := http.NewServeMux()
 	fileServer := http.FileServer(http.Dir("ui/static"))
 
 	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
-	mux.Handle("POST /api/join", handlers.Join(store))
-	mux.Handle("POST /api/placement", handlers.Place(store))
 	mux.Handle("GET /api/playerInfo", handlers.GetPlayerData(store))
-	mux.Handle("POST /api/fire", handlers.Fire(store))
 	mux.Handle("GET /api/events/{token}", handlers.SSEHandler(store))
+
+	mux.Handle("POST /api/join", handlers.Join(store, context, redisStore))
+	mux.Handle("POST /api/placement", handlers.Place(store))
+	mux.Handle("POST /api/fire", handlers.Fire(store))
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
